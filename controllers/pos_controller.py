@@ -4,6 +4,7 @@ Controlador principal para el sistema POS
 from tkinter import messagebox
 from models.producto import Producto
 from models.carrito import Carrito
+from utils.constants import MSG_NO_PRODUCTOS, MSG_PRODUCTO_NO_ENCONTRADO, MSG_TICKET, MSG_POS
 
 class POSController:
     def __init__(self, view):
@@ -23,7 +24,8 @@ class POSController:
     def agregar_producto_al_carrito(self, producto):
         """Agrega un producto al carrito y actualiza la vista"""
         self.carrito.agregar_producto(producto)
-        self.view.actualizar_carrito(self.carrito)
+        if self.view:
+            self.view.actualizar_carrito(self.carrito)
     
     def buscar_producto_por_codigo(self, codigo):
         """Busca un producto por código y lo agrega al carrito si existe"""
@@ -35,21 +37,22 @@ class POSController:
             self.agregar_producto_al_carrito(producto)
             return True
         else:
-            messagebox.showwarning("Producto no encontrado", f"No se encontró el código: {codigo}")
+            messagebox.showwarning(MSG_PRODUCTO_NO_ENCONTRADO, f"No se encontró el código: {codigo}")
             return False
     
     def procesar_cobro(self):
         """Procesa el cobro y genera el ticket"""
         if self.carrito.esta_vacio():
-            messagebox.showinfo("POS", "No hay productos en el carrito.")
+            messagebox.showinfo(MSG_POS, MSG_NO_PRODUCTOS)
             return
         
         ticket_texto = self.carrito.generar_ticket()
-        messagebox.showinfo("Ticket", ticket_texto)
+        messagebox.showinfo(MSG_TICKET, ticket_texto)
         
         # Limpiar carrito después del cobro
         self.carrito.limpiar()
-        self.view.limpiar_carrito()
+        if self.view:
+            self.view.limpiar_carrito()
     
     def obtener_total_carrito(self):
         """Obtiene el total actual del carrito"""

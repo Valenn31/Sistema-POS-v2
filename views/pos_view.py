@@ -1,100 +1,95 @@
 """
-Vista principal del sistema POS
+Vista principal del sistema POS - Refactorizada con componentes
 """
 import tkinter as tk
+from views.components.frame_superior import FrameSuperior
+from views.components.frame_productos import FrameProductos
+from views.components.frame_carrito import FrameCarrito
+from utils.constants import POS_WINDOW_SIZE, TEXTO_PUNTO_VENTA
 
 class POSView:
-    def __init__(self, controller):
+    def __init__(self, controller=None):
         self.controller = controller
         self.ventana = None
-        self.entrada_codigo = None
-        self.lista_carrito = None
-        self.total_var = None
+        
+        # Componentes de la interfaz
+        self.frame_superior = None
         self.frame_productos = None
+        self.frame_carrito = None
+        
+    def set_controller(self, controller):
+        """Asigna el controlador a la vista"""
+        self.controller = controller
         
     def crear_interfaz(self):
-        """Crea la interfaz principal del POS"""
+        """Crea la interfaz principal del POS usando componentes"""
         self.ventana = tk.Toplevel()
-        self.ventana.title("Punto de Venta")
-        self.ventana.geometry("600x400")
+        self.ventana.title(TEXTO_PUNTO_VENTA)
+        self.ventana.geometry(POS_WINDOW_SIZE)
         
-        # Variable para mostrar el total
-        self.total_var = tk.StringVar(value="0.00")
-        
-        self._crear_frame_superior()
-        self._crear_frame_productos()
-        self._crear_frame_carrito()
-        self._cargar_productos()
+        self._crear_componentes()
+        self._cargar_datos_iniciales()
         
         # Enfocar la entrada de código
-        self.entrada_codigo.focus()
+        self.frame_superior.enfocar()
     
-    def _crear_frame_superior(self):
-        """Crea el frame superior con la entrada de código"""
-        frame_superior = tk.Frame(self.ventana)
-        frame_superior.pack(fill="x", pady=5)
+    def _crear_componentes(self):
+        """Crea todos los componentes de la interfaz"""
+        # Frame superior con entrada de código
+        self.frame_superior = FrameSuperior(
+            self.ventana, 
+            self._manejar_codigo
+        )
+        self.frame_superior.crear()
         
-        tk.Label(frame_superior, text="Escanear o ingresar código:").pack(side="left", padx=5)
-        self.entrada_codigo = tk.Entry(frame_superior, width=20)
-        self.entrada_codigo.pack(side="left")
-        self.entrada_codigo.bind("<Return>", self._manejar_codigo)
-    
-    def _crear_frame_productos(self):
-        """Crea el frame para mostrar los productos disponibles"""
-        self.frame_productos = tk.Frame(self.ventana)
-        self.frame_productos.pack(side="left", fill="both", expand=True)
-    
-    def _crear_frame_carrito(self):
-        """Crea el frame del carrito de compras"""
-        frame_derecho = tk.Frame(self.ventana)
-        frame_derecho.pack(side="right", fill="y")
+        # Frame de productos
+        self.frame_productos = FrameProductos(
+            self.ventana,
+            self._agregar_producto
+        )
+        self.frame_productos.crear()
         
-        tk.Label(frame_derecho, text="Carrito").pack()
-        self.lista_carrito = tk.Listbox(frame_derecho, width=30)
-        self.lista_carrito.pack()
-        
-        tk.Label(frame_derecho, text="Total: $").pack()
-        tk.Label(frame_derecho, textvariable=self.total_var, font=("Arial", 14, "bold")).pack()
-        
-        tk.Button(frame_derecho, text="Cobrar", command=self._cobrar, 
-                 bg="green", fg="white").pack(pady=10)
+        # Frame del carrito
+        self.frame_carrito = FrameCarrito(
+            self.ventana,
+            self._cobrar
+        )
+        self.frame_carrito.crear()
     
-    def _cargar_productos(self):
-        """Carga los botones de productos en la interfaz"""
-        productos = self.controller.obtener_productos()
-        for producto in productos:
-            btn = tk.Button(self.frame_productos, 
-                          text=str(producto),
-                          command=lambda p=producto: self.controller.agregar_producto_al_carrito(p),
-                          anchor="w", justify="left")
-            btn.pack(fill="x")
+    def _cargar_datos_iniciales(self):
+        """Carga los datos iniciales en la interfaz"""
+        if self.controller:
+            productos = self.controller.obtener_productos()
+            self.frame_productos.cargar_productos(productos)
     
-    def _manejar_codigo(self, event=None):
-        """Maneja la entrada de código por teclado o escáner"""
-        codigo = self.entrada_codigo.get()
-        if self.controller.buscar_producto_por_codigo(codigo):
-            self.entrada_codigo.delete(0, tk.END)
-        else:
-            self.entrada_codigo.select_range(0, tk.END)
+    def _manejar_codigo(self, codigo):
+        """Callback para manejar entrada de código"""
+        if self.controller:
+            return self.controller.buscar_producto_por_codigo(codigo)
+        return False
+    
+    def _agregar_producto(self, producto):
+        """Callback para agregar producto al carrito"""
+        if self.controller:
+            self.controller.agregar_producto_al_carrito(producto)
     
     def _cobrar(self):
-        """Maneja el proceso de cobro"""
-        self.controller.procesar_cobro()
+        """Callback para procesar el cobro"""
+        if self.controller:
+            self.controller.procesar_cobro()
     
     def actualizar_carrito(self, carrito):
         """Actualiza la visualización del carrito"""
         items = carrito.obtener_items()
-        
-        # Actualizar lista del carrito
-        self.lista_carrito.delete(0, tk.END)
-        for item in items:
-            self.lista_carrito.insert(tk.END, f"{item.nombre} - ${item.precio:.2f}")
-        
-        # Actualizar total
         total = carrito.calcular_total()
-        self.total_var.set(f"{total:.2f}")
+        self.frame_carrito.actualizar_carrito(items, total)
     
     def limpiar_carrito(self):
         """Limpia la visualización del carrito"""
-        self.lista_carrito.delete(0, tk.END)
-        self.total_var.set("0.00")
+        self.frame_carrito.limpiar_carrito()
+    
+    def actualizar_productos(self):
+        """Actualiza la lista de productos mostrados"""
+        if self.controller:
+            productos = self.controller.obtener_productos()
+            self.frame_productos.actualizar_productos(productos)
